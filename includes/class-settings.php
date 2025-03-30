@@ -10,13 +10,18 @@ class Settings {
     }
 
     public function init() {
-        add_action('the_seo_framework_after_admin_init', [$this, 'register_settings']);
+        error_log('TSF AI Suggestions: Settings::init called');
+        // Use admin_init as a fallback if TSF-specific hook fails
+        add_action('admin_init', [$this, 'register_settings_fallback']);
+        add_action('the_seo_framework_after_admin_init', [$this, 'register_settings'], 10);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']);
-        add_filter('the_seo_framework_metabox_after_fields', [$this, 'add_suggestion_button'], 10, 2);
+        // Try a more general TSF hook for meta box
+        add_action('the_seo_framework_metabox_after', [$this, 'add_suggestion_button'], 10, 2);
         $this->apply_filters();
     }
 
     public function register_settings() {
+        error_log('TSF AI Suggestions: register_settings called');
         $tsf = tsf();
 
         $tsf->add_option_filter('tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
@@ -28,8 +33,26 @@ class Settings {
                 'menu_slug' => 'tsf-ai-suggestions',
                 'callback' => [$this, 'render_settings_page'],
             ],
-            'seo-settings'
+            'seo-settings' // TSF parent menu slug
         );
+        error_log('TSF AI Suggestions: Menu page added under seo-settings');
+    }
+
+    // Fallback if TSF hook doesn’t fire
+    public function register_settings_fallback() {
+        if (!did_action('the_seo_framework_after_admin_init')) {
+            error_log('TSF AI Suggestions: Fallback menu registration');
+            add_menu_page(
+                'AI Suggestions Settings',
+                'AI Suggestions',
+                'manage_options',
+                'tsf-ai-suggestions',
+                [$this, 'render_settings_page'],
+                'dashicons-admin-tools',
+                100
+            );
+            register_setting('tsf_ai_suggestions_settings_group', 'tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
+        }
     }
 
     public function sanitize_settings($input) {
@@ -39,7 +62,7 @@ class Settings {
         $input['temperature'] = max(0, min(2, floatval($input['temperature'])));
         $input['enable_description'] = isset($input['enable_description']) ? 1 : 0;
         $input['enable_title'] = isset($input['enable_title']) ? 1 : 0;
-        $input['allow_unverified_ssl'] = isset($input['allow_unverified_ssl']) ? 1 : 0; // New checkbox
+        $input['allow_unverified_ssl'] = isset($input['allow_unverified_ssl']) ? 1 : 0;
         return $input;
     }
 
@@ -47,7 +70,7 @@ class Settings {
         $options = get_option('tsf_ai_suggestions_settings', $this->ai_suggestions->get_settings() + [
             'enable_description' => 0,
             'enable_title' => 0,
-            'allow_unverified_ssl' => 0, // Default to off
+            'allow_unverified_ssl' => 0,
         ]);
         ?>
         <div class="wrap">
@@ -94,6 +117,40 @@ class Settings {
         register_setting('tsf_ai_suggestions_settings_group', 'tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
     }
 
+    public function enqueue_scripts($hook) {
+        error_log("TSF AI Suggestions: enqueue_scripts called with hook: $hook");
+        if (!in_array($hook, ['post.php', 'post-new.php'], true)) {
+            return;
+        }
+
+        wp_enqueue_script(
+            'tsf-ai-suggestions',
+            plugin_dir_url(__DIR__) . 'assets/js/ai-suggestions.js',
+            ['jquery'],
+            '1.0.0',
+            true
+        );
+        wp_localize_script(
+            'tsf-ai-suggestions',
+            'tsfAiSettings',
+            [
+                'ajaxurl' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('tsf_ai_suggestions_nonce'),
+            ]
+        );
+        error_log('TSF AI Suggestions: Scripts enqueued');
+    }
+
+    public function add_suggestion_button($post_id, $context = null) {
+        error_log("TSF AI Suggestions: add_suggestion_button called for post ID: $post_id");
+        ?>
+        <div class="tsf-ai-suggestions">
+            <button type="button" class="button button-primary" id="tsf-ai-suggest">Get AI Suggestions</button>
+            <div id="tsf-ai-suggestion-result"></div>
+        </div>
+        <?php
+    }
+
     private function apply_filters() {
         $options = get_option('tsf_ai_suggestions_settings', [
             'enable_description' => 0,
@@ -113,36 +170,5 @@ class Settings {
                 return $ai->process_content($title);
             }, 10, 2);
         }
-    }
-
-    public function enqueue_scripts($hook) {
-        if (!in_array($hook, ['post.php', 'post-new.php'], true)) {
-            return;
-        }
-
-        wp_enqueue_script(
-            'tsf-ai-suggestions',
-            plugin_dir_url(__FILE__) . '../assets/js/ai-suggestions.js',
-            ['jquery'],
-            '1.0.0',
-            true
-        );
-        wp_localize_script(
-            'tsf-ai-suggestions',
-            'tsfAiSettings',
-            [
-                'ajaxurl' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('tsf_ai_suggestions_nonce'),
-            ]
-        );
-    }
-
-    public function add_suggestion_button($post_id, $context) {
-        ?>
-        <div class="tsf-ai-suggestions">
-            <button type="button" class="button button-primary" id="tsf-ai-suggest">Get AI Suggestions</button>
-            <div id="tsf-ai-suggestion-result"></div>
-        </div>
-        <?php
     }
 }

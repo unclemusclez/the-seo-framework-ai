@@ -10,7 +10,6 @@ Requires Plugins: the-seo-framework
 // Prevent direct access.
 if (!defined('ABSPATH')) exit;
 
-// Use __DIR__ to ensure paths are relative to this file’s location.
 require_once __DIR__ . '/includes/class-ai-suggestions.php';
 require_once __DIR__ . '/includes/class-settings.php';
 
@@ -18,11 +17,14 @@ use TSF_AI_Suggestions\AI_Suggestions;
 use TSF_AI_Suggestions\Settings;
 
 add_action('plugins_loaded', function () {
+    error_log('TSF AI Suggestions: plugins_loaded fired');
     if (!class_exists('The_SEO_Framework\Load')) {
-        return; // TSF not active.
+        error_log('TSF AI Suggestions: The SEO Framework not detected');
+        return;
     }
+    error_log('TSF AI Suggestions: The SEO Framework detected, version: ' . (defined('THE_SEO_FRAMEWORK_VERSION') ? THE_SEO_FRAMEWORK_VERSION : 'unknown'));
 
     $ai_suggestions = new AI_Suggestions();
     $settings = new Settings($ai_suggestions);
     $settings->init();
-});
+}, 10); // Default priority to ensure TSF loads first
