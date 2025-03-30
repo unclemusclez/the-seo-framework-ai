@@ -1,6 +1,3 @@
-To calibrate the README.md for proper Markdown rendering (especially on platforms like GitHub), we need to ensure consistent formatting, proper heading levels, code block syntax, and list structures. Below is the recalibrated version of the README.md with Markdown best practices applied:
-markdown
-
 # TSF AI Suggestions
 
 A WordPress plugin that integrates AI-powered content suggestions into [The SEO Framework](https://wordpress.org/plugins/autodescription/) using an OpenAI-compatible endpoint (e.g., hosted with `llama.cpp`). This plugin enhances SEO workflows by suggesting improvements to titles and descriptions, with configurable settings and a user-friendly interface.
