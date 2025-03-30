@@ -10,7 +10,8 @@ class AI_Suggestions {
     private $api_key;
     private $max_tokens;
     private $temperature;
-    private $allow_unverified_ssl; // New property
+    private $allow_unverified_ssl;
+    private $system_prompt; // New property
 
     public function __construct() {
         $options = get_option('tsf_ai_suggestions_settings', []);
@@ -18,7 +19,8 @@ class AI_Suggestions {
         $this->api_key = $options['api_key'] ?? '';
         $this->max_tokens = $options['max_tokens'] ?? 500;
         $this->temperature = $options['temperature'] ?? 0.7;
-        $this->allow_unverified_ssl = $options['allow_unverified_ssl'] ?? 0; // New setting
+        $this->allow_unverified_ssl = $options['allow_unverified_ssl'] ?? 0;
+        $this->system_prompt = $options['system_prompt'] ?? 'Improve this text:'; // New setting
         $this->init_ajax();
     }
 
@@ -31,7 +33,7 @@ class AI_Suggestions {
     }
 
     private function get_ai_suggestion($original) {
-        $prompt = "Improve this text: " . $original;
+        $prompt = $this->system_prompt . " " . $original; // Use system prompt
         $data = [
             'prompt' => $prompt,
             'max_tokens' => (int)$this->max_tokens,
@@ -53,7 +55,7 @@ class AI_Suggestions {
                 'Authorization' => $this->api_key ? "Bearer $this->api_key" : '',
             ],
             'timeout' => 30,
-            'sslverify' => !$this->allow_unverified_ssl, // Disable SSL verification if checked
+            'sslverify' => !$this->allow_unverified_ssl,
         ];
 
         $response = wp_remote_post($this->endpoint, $args);
@@ -101,7 +103,8 @@ class AI_Suggestions {
             'api_key' => $this->api_key,
             'max_tokens' => $this->max_tokens,
             'temperature' => $this->temperature,
-            'allow_unverified_ssl' => $this->allow_unverified_ssl, // Include in settings
+            'allow_unverified_ssl' => $this->allow_unverified_ssl,
+            'system_prompt' => $this->system_prompt, // Include in settings
         ];
     }
 

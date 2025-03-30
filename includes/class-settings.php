@@ -27,15 +27,13 @@ class Settings {
             return;
         }
 
-        // Replace tsf()->add_option_filter with filter hook
         add_filter('the_seo_framework_settings_update_sanitizers', function ($sanitizers) {
             $sanitizers['tsf_ai_suggestions_settings'] = [$this, 'sanitize_settings'];
             return $sanitizers;
         });
 
-        // Use WordPress add_submenu_page instead of tsf()->add_menu_page
         $page = add_submenu_page(
-            'theseoframework-settings', // TSF’s main menu slug from logs
+            'theseoframework-settings',
             'AI Suggestions Settings',
             'AI Suggestions',
             $capability,
@@ -53,6 +51,7 @@ class Settings {
         $input['enable_description'] = isset($input['enable_description']) ? 1 : 0;
         $input['enable_title'] = isset($input['enable_title']) ? 1 : 0;
         $input['allow_unverified_ssl'] = isset($input['allow_unverified_ssl']) ? 1 : 0;
+        $input['system_prompt'] = sanitize_text_field($input['system_prompt'] ?? ''); // New field
         return $input;
     }
 
@@ -61,6 +60,7 @@ class Settings {
             'enable_description' => 0,
             'enable_title' => 0,
             'allow_unverified_ssl' => 0,
+            'system_prompt' => 'Improve this text:', // Default prompt
         ]);
         ?>
         <div class="wrap">
@@ -86,6 +86,13 @@ class Settings {
                     <tr>
                         <th><label for="tsf_ai_temperature">Temperature</label></th>
                         <td><input type="number" step="0.1" name="tsf_ai_suggestions_settings[temperature]" id="tsf_ai_temperature" value="<?php echo esc_attr($options['temperature']); ?>" min="0" max="2" /></td>
+                    </tr>
+                    <tr>
+                        <th><label for="tsf_ai_system_prompt">System Prompt</label></th>
+                        <td>
+                            <input type="text" name="tsf_ai_suggestions_settings[system_prompt]" id="tsf_ai_system_prompt" value="<?php echo esc_attr($options['system_prompt']); ?>" class="regular-text" />
+                            <p class="description">Enter a custom prompt to guide the AI (e.g., "Rewrite in a formal tone").</p>
+                        </td>
                     </tr>
                     <tr>
                         <th><label for="tsf_ai_enable_description">Enable Description Suggestions</label></th>
