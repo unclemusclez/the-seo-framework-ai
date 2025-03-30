@@ -11,8 +11,10 @@ class Settings {
 
     public function init() {
         error_log('TSF AI Suggestions: Settings::init called');
-        add_action('admin_menu', [$this, 'register_settings'], 11); // Earlier than TSFEM’s extensions
+        add_action('admin_menu', [$this, 'register_settings'], 11);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']);
+        // Test multiple meta box hooks
+        add_action('the_seo_framework_metabox_after', [$this, 'add_suggestion_button'], 10);
         add_action('the_seo_framework_after_post_edit_metabox', [$this, 'add_suggestion_button'], 10);
         add_action('the_seo_framework_after_term_edit_metabox', [$this, 'add_suggestion_button'], 10);
         $this->apply_filters();
@@ -28,6 +30,7 @@ class Settings {
 
         $tsf = tsf();
         $tsf->add_option_filter('tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
+        // Use 'theseoframework-settings' instead of 'seo-settings'
         $page = $tsf->add_menu_page(
             [
                 'page_title' => 'AI Suggestions Settings',
@@ -36,11 +39,10 @@ class Settings {
                 'menu_slug' => 'tsf-ai-suggestions',
                 'callback' => [$this, 'render_settings_page'],
             ],
-            'seo-settings'
+            'theseoframework-settings'
         );
-        error_log('TSF AI Suggestions: Menu page added under seo-settings, result: ' . ($page ? 'success' : 'failed'));
+        error_log('TSF AI Suggestions: Menu page added under theseoframework-settings, result: ' . ($page ? 'success' : 'failed'));
     }
-
 
     public function sanitize_settings($input) {
         $input['endpoint'] = esc_url_raw($input['endpoint']);
