@@ -2,7 +2,6 @@
 namespace TSF_AI_Suggestions;
 
 class Settings {
-
     private $ai_suggestions;
 
     public function __construct(AI_Suggestions $ai_suggestions) {
@@ -10,9 +9,8 @@ class Settings {
     }
 
     public function init() {
-        error_log('TSF AI Suggestions: Settings::init called');
         add_action('admin_menu', [$this, 'register_settings'], 11);
-        add_action('admin_init', [$this, 'register_settings_fields']); // New hook for settings
+        add_action('admin_init', [$this, 'register_settings_fields']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']);
         add_action('the_seo_framework_metabox_after', [$this, 'add_suggestion_button'], 10);
         add_action('the_seo_framework_after_post_edit_metabox', [$this, 'add_suggestion_button'], 10);
@@ -21,10 +19,8 @@ class Settings {
     }
 
     public function register_settings() {
-        error_log('TSF AI Suggestions: register_settings called');
         $capability = defined('TSF_EXTENSION_MANAGER_MAIN_ADMIN_ROLE') ? TSF_EXTENSION_MANAGER_MAIN_ADMIN_ROLE : 'manage_options';
         if (!current_user_can($capability)) {
-            error_log('TSF AI Suggestions: User lacks capability: ' . $capability);
             return;
         }
 
@@ -33,7 +29,7 @@ class Settings {
             return $sanitizers;
         });
 
-        $page = add_submenu_page(
+        add_submenu_page(
             'theseoframework-settings',
             'AI Suggestions Settings',
             'AI Suggestions',
@@ -41,11 +37,9 @@ class Settings {
             'tsf-ai-suggestions',
             [$this, 'render_settings_page']
         );
-        error_log('TSF AI Suggestions: Menu page added under theseoframework-settings, result: ' . ($page ? $page : 'failed'));
     }
 
     public function register_settings_fields() {
-        error_log('TSF AI Suggestions: register_settings_fields called');
         register_setting('tsf_ai_suggestions_settings_group', 'tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
     }
 
