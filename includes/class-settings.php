@@ -11,9 +11,10 @@ class Settings {
 
     public function init() {
         error_log('TSF AI Suggestions: Settings::init called');
-        add_action('admin_menu', [$this, 'register_settings'], 11);
+        // Use TSF’s admin init for menu registration
+        add_action('the_seo_framework_after_admin_init', [$this, 'register_settings'], 10);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']);
-        // Cover both post and term meta boxes
+        // TSF hooks for meta boxes
         add_action('the_seo_framework_after_post_edit_metabox', [$this, 'add_suggestion_button'], 10);
         add_action('the_seo_framework_after_term_edit_metabox', [$this, 'add_suggestion_button'], 10);
         $this->apply_filters();
@@ -27,32 +28,19 @@ class Settings {
             return;
         }
 
-        if (function_exists('tsf')) {
-            $tsf = tsf();
-            $tsf->add_option_filter('tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
-            $page = $tsf->add_menu_page(
-                [
-                    'page_title' => 'AI Suggestions Settings',
-                    'menu_title' => 'AI Suggestions',
-                    'capability' => $capability,
-                    'menu_slug' => 'tsf-ai-suggestions',
-                    'callback' => [$this, 'render_settings_page'],
-                ],
-                'seo-settings'
-            );
-            error_log('TSF AI Suggestions: Menu page added under seo-settings, result: ' . ($page ? 'success' : 'failed'));
-        } else {
-            error_log('TSF AI Suggestions: TSF not fully loaded, using fallback');
-            add_submenu_page(
-                'theseoframework-settings', // TSF’s default slug
-                'AI Suggestions Settings',
-                'AI Suggestions',
-                $capability,
-                'tsf-ai-suggestions',
-                [$this, 'render_settings_page']
-            );
-        }
-        register_setting('tsf_ai_suggestions_settings_group', 'tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
+        $tsf = tsf();
+        $tsf->add_option_filter('tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
+        $page = $tsf->add_menu_page(
+            [
+                'page_title' => 'AI Suggestions Settings',
+                'menu_title' => 'AI Suggestions',
+                'capability' => $capability,
+                'menu_slug' => 'tsf-ai-suggestions',
+                'callback' => [$this, 'render_settings_page'],
+            ],
+            'seo-settings'
+        );
+        error_log('TSF AI Suggestions: Menu page added under seo-settings, result: ' . ($page ? 'success' : 'failed'));
     }
 
     public function sanitize_settings($input) {
@@ -114,6 +102,7 @@ class Settings {
             </form>
         </div>
         <?php
+        register_setting('tsf_ai_suggestions_settings_group', 'tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
     }
 
     public function enqueue_scripts($hook) {
@@ -144,7 +133,8 @@ class Settings {
     }
 
     public function add_suggestion_button() {
-        error_log('TSF AI Suggestions: add_suggestion_button called');
+        global $hook_suffix;
+        error_log("TSF AI Suggestions: add_suggestion_button called on hook: $hook_suffix");
         ?>
         <div class="tsf-ai-suggestions">
             <button type="button" class="button button-primary" id="tsf-ai-suggest">Get AI Suggestions</button>
@@ -167,10 +157,4 @@ class Settings {
         }
 
         if ($options['enable_title']) {
-            add_filter('the_seo_framework_title_from_generation', function ($title, $args) {
-                $ai = new AI_Suggestions();
-                return $ai->process_content($title);
-            }, 10, 2);
-        }
-    }
-}
+            add_filter('the_seo_framework_title_from_generation', function ($title

@@ -32,7 +32,11 @@ add_action('plugins_loaded', function () {
         return;
     }
 
-    $ai_suggestions = new AI_Suggestions();
-    $settings = new Settings($ai_suggestions);
-    $settings->init();
-}, 11); // After TSF (10) and TSFEM (if present)
+    // Defer initialization to after TSF is fully loaded
+    add_action('the_seo_framework_init', function () {
+        error_log('TSF AI Suggestions: the_seo_framework_init fired');
+        $ai_suggestions = new AI_Suggestions();
+        $settings = new Settings($ai_suggestions);
+        $settings->init();
+    }, 10);
+}, 10);
