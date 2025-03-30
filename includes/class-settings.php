@@ -157,4 +157,10 @@ class Settings {
         }
 
         if ($options['enable_title']) {
-            add_filter('the_seo_framework_title_from_generation', function ($title
+            add_filter('the_seo_framework_title_from_generation', function ($title, $args) {
+                $ai = new AI_Suggestions();
+                return $ai->process_content($title);
+            }, 10, 2);
+        }
+    }
+}
