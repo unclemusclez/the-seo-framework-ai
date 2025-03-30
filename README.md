@@ -7,7 +7,7 @@ A WordPress plugin that integrates AI-powered content suggestions into [The SEO 
 - **AI-Powered Suggestions**: Improve titles and descriptions using an OpenAI-compatible API.
 - **Settings Integration**: Configure the AI endpoint, API key, and processing options within The SEO Framework's admin menu.
 - **GUI Enhancements**: Adds a "Get AI Suggestions" button to TSF’s meta box for on-demand suggestions.
-- **Checkbox Controls**: Enable/disable automatic AI processing for descriptions and titles via settings.
+- **Checkbox Controls**: Enable/disable automatic AI processing for descriptions and titles, and allow unverified SSL connections.
 - **Customizable**: Works with local or remote `llama.cpp` servers or any OpenAI-compatible endpoint.
 
 ## Requirements
@@ -21,11 +21,11 @@ A WordPress plugin that integrates AI-powered content suggestions into [The SEO 
 1. **Download**:
 
    - Clone this repository or download the ZIP file.
-   - Alternatively, copy the code into a folder named `tsf-ai-suggestions`.
+   - Alternatively, copy the code into a folder named `the-seo-framework-ai`.
 
 2. **Install**:
 
-   - Upload the `tsf-ai-suggestions` folder to your WordPress `wp-content/plugins/` directory.
+   - Upload the `the-seo-framework-ai` folder to your WordPress `wp-content/plugins/` directory.
    - Activate the plugin via the WordPress admin dashboard under **Plugins > Installed Plugins**.
 
 3. **Set Up `llama.cpp` (Optional)**:
@@ -47,6 +47,7 @@ A WordPress plugin that integrates AI-powered content suggestions into [The SEO 
    - **Temperature**: Adjust the creativity of suggestions (0-2, default: 0.7).
    - **Enable Description Suggestions**: Check to auto-process descriptions with AI.
    - **Enable Title Suggestions**: Check to auto-process titles with AI.
+   - **Allow Unverified SSL**: Check to allow connections to endpoints with self-signed or invalid SSL certificates.
    - Save changes.
 
 ## Usage
@@ -69,15 +70,17 @@ A WordPress plugin that integrates AI-powered content suggestions into [The SEO 
 
 ## File Structure
 
-tsf-ai-suggestions/
+```
+/var/www/waterpistol.co/htdocs/wp-content/plugins/the-seo-framework-ai/
 ├── assets/
-│ └── js/
-│ └── ai-suggestions.js # JavaScript for AJAX suggestion requests
+│   └── js/
+│       └── ai-suggestions.js  # JavaScript for AJAX suggestion requests
 ├── includes/
-│ ├── class-ai-suggestions.php # Core AI processing logic
-│ └── class-settings.php # Settings and GUI integration
-├── tsf-ai-suggestions.php # Main plugin file
-└── README.md # This file
+│   ├── class-ai-suggestions.php  # Core AI processing logic
+│   └── class-settings.php        # Settings and GUI integration
+├── tsf-ai-suggestions.php        # Main plugin file
+└── README.md                     # This file
+```
 
 ## Development
 
@@ -88,12 +91,12 @@ tsf-ai-suggestions/
 ## Notes
 
 - **Performance**: Local `llama.cpp` performance depends on your hardware. Use a small model for testing.
-- **Security**: If exposing the API endpoint publicly, secure it with an API key and HTTPS.
+- **Security**: If exposing the API endpoint publicly, secure it with an API key and HTTPS. Use "Allow Unverified SSL" only for testing or trusted local setups.
 - **TSF Compatibility**: Tested with TSF v5.0.0+. Adjust field IDs in `ai-suggestions.js` if they differ in your TSF version.
 
 ## Troubleshooting
 
-- **API Not Responding**: Verify the endpoint URL and ensure the `llama.cpp` server is running.
+- **API Not Responding**: Verify the endpoint URL and ensure the `llama.cpp` server is running. Check "Allow Unverified SSL" if using a self-signed certificate.
 - **No Suggestions**: Check the browser console for AJAX errors and confirm the nonce is valid.
 - **Filter Not Applying**: Ensure checkboxes are enabled and settings are saved.
 

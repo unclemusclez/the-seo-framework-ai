@@ -9,19 +9,13 @@ class Settings {
         $this->ai_suggestions = $ai_suggestions;
     }
 
-    /**
-     * Initialize settings and GUI hooks.
-     */
     public function init() {
         add_action('the_seo_framework_after_admin_init', [$this, 'register_settings']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']);
         add_filter('the_seo_framework_metabox_after_fields', [$this, 'add_suggestion_button'], 10, 2);
-        $this->apply_filters(); // New method to handle filters.
+        $this->apply_filters();
     }
 
-    /**
-     * Register settings with TSF.
-     */
     public function register_settings() {
         $tsf = tsf();
 
@@ -38,29 +32,22 @@ class Settings {
         );
     }
 
-    /**
-     * Sanitize settings input.
-     *
-     * @param array $input The input settings.
-     * @return array The sanitized settings.
-     */
     public function sanitize_settings($input) {
         $input['endpoint'] = esc_url_raw($input['endpoint']);
         $input['api_key'] = sanitize_text_field($input['api_key']);
         $input['max_tokens'] = absint($input['max_tokens']);
         $input['temperature'] = max(0, min(2, floatval($input['temperature'])));
-        $input['enable_description'] = isset($input['enable_description']) ? 1 : 0; // Checkbox sanitization.
-        $input['enable_title'] = isset($input['enable_title']) ? 1 : 0; // Checkbox sanitization.
+        $input['enable_description'] = isset($input['enable_description']) ? 1 : 0;
+        $input['enable_title'] = isset($input['enable_title']) ? 1 : 0;
+        $input['allow_unverified_ssl'] = isset($input['allow_unverified_ssl']) ? 1 : 0; // New checkbox
         return $input;
     }
 
-    /**
-     * Render the settings page with checkboxes.
-     */
     public function render_settings_page() {
         $options = get_option('tsf_ai_suggestions_settings', $this->ai_suggestions->get_settings() + [
             'enable_description' => 0,
             'enable_title' => 0,
+            'allow_unverified_ssl' => 0, // Default to off
         ]);
         ?>
         <div class="wrap">
@@ -95,6 +82,10 @@ class Settings {
                         <th><label for="tsf_ai_enable_title">Enable Title Suggestions</label></th>
                         <td><input type="checkbox" name="tsf_ai_suggestions_settings[enable_title]" id="tsf_ai_enable_title" value="1" <?php checked($options['enable_title'], 1); ?> /></td>
                     </tr>
+                    <tr>
+                        <th><label for="tsf_ai_allow_unverified_ssl">Allow Unverified SSL</label></th>
+                        <td><input type="checkbox" name="tsf_ai_suggestions_settings[allow_unverified_ssl]" id="tsf_ai_allow_unverified_ssl" value="1" <?php checked($options['allow_unverified_ssl'], 1); ?> /> <small>(Enable if using a self-signed SSL certificate)</small></td>
+                    </tr>
                 </table>
                 <?php submit_button(); ?>
             </form>
@@ -103,9 +94,6 @@ class Settings {
         register_setting('tsf_ai_suggestions_settings_group', 'tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
     }
 
-    /**
-     * Apply filters based on settings.
-     */
     private function apply_filters() {
         $options = get_option('tsf_ai_suggestions_settings', [
             'enable_description' => 0,
@@ -127,9 +115,6 @@ class Settings {
         }
     }
 
-    /**
-     * Enqueue scripts for the meta box.
-     */
     public function enqueue_scripts($hook) {
         if (!in_array($hook, ['post.php', 'post-new.php'], true)) {
             return;
@@ -152,9 +137,6 @@ class Settings {
         );
     }
 
-    /**
-     * Add a suggestion button to the TSF meta box.
-     */
     public function add_suggestion_button($post_id, $context) {
         ?>
         <div class="tsf-ai-suggestions">
