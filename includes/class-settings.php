@@ -11,42 +11,48 @@ class Settings {
 
     public function init() {
         error_log('TSF AI Suggestions: Settings::init called');
-        // Use admin_menu for broader compatibility
-        add_action('admin_menu', [$this, 'register_settings'], 11); // After TSF’s 10
+        add_action('admin_menu', [$this, 'register_settings'], 11);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']);
-        // Use a more common TSF meta box hook
+        // Cover both post and term meta boxes
         add_action('the_seo_framework_after_post_edit_metabox', [$this, 'add_suggestion_button'], 10);
+        add_action('the_seo_framework_after_term_edit_metabox', [$this, 'add_suggestion_button'], 10);
         $this->apply_filters();
     }
 
     public function register_settings() {
         error_log('TSF AI Suggestions: register_settings called');
+        $capability = defined('TSF_EXTENSION_MANAGER_MAIN_ADMIN_ROLE') ? TSF_EXTENSION_MANAGER_MAIN_ADMIN_ROLE : 'manage_options';
+        if (!current_user_can($capability)) {
+            error_log('TSF AI Suggestions: User lacks capability: ' . $capability);
+            return;
+        }
+
         if (function_exists('tsf')) {
             $tsf = tsf();
             $tsf->add_option_filter('tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
-            $tsf->add_menu_page(
+            $page = $tsf->add_menu_page(
                 [
                     'page_title' => 'AI Suggestions Settings',
                     'menu_title' => 'AI Suggestions',
-                    'capability' => 'manage_options',
+                    'capability' => $capability,
                     'menu_slug' => 'tsf-ai-suggestions',
                     'callback' => [$this, 'render_settings_page'],
                 ],
                 'seo-settings'
             );
-            error_log('TSF AI Suggestions: Menu page added under seo-settings');
+            error_log('TSF AI Suggestions: Menu page added under seo-settings, result: ' . ($page ? 'success' : 'failed'));
         } else {
             error_log('TSF AI Suggestions: TSF not fully loaded, using fallback');
-            add_menu_page(
+            add_submenu_page(
+                'theseoframework-settings', // TSF’s default slug
                 'AI Suggestions Settings',
                 'AI Suggestions',
-                'manage_options',
+                $capability,
                 'tsf-ai-suggestions',
-                [$this, 'render_settings_page'],
-                'dashicons-admin-tools',
-                100
+                [$this, 'render_settings_page']
             );
         }
+        register_setting('tsf_ai_suggestions_settings_group', 'tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
     }
 
     public function sanitize_settings($input) {
@@ -108,7 +114,6 @@ class Settings {
             </form>
         </div>
         <?php
-        register_setting('tsf_ai_suggestions_settings_group', 'tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
     }
 
     public function enqueue_scripts($hook) {

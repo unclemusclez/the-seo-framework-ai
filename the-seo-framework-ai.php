@@ -22,7 +22,10 @@ add_action('plugins_loaded', function () {
         error_log('TSF AI Suggestions: The SEO Framework not detected');
         return;
     }
-    error_log('TSF AI Suggestions: The SEO Framework detected, version: ' . (defined('THE_SEO_FRAMEWORK_VERSION') ? THE_SEO_FRAMEWORK_VERSION : 'unknown'));
+    error_log('TSF AI Suggestions: TSF detected, version: ' . (defined('THE_SEO_FRAMEWORK_VERSION') ? THE_SEO_FRAMEWORK_VERSION : 'unknown'));
+    if (defined('TSF_EXTENSION_MANAGER_PRESENT')) {
+        error_log('TSF AI Suggestions: TSF Extension Manager detected, version: ' . TSF_EXTENSION_MANAGER_VERSION);
+    }
 
     if (defined('THE_SEO_FRAMEWORK_HEADLESS') && THE_SEO_FRAMEWORK_HEADLESS) {
         error_log('TSF AI Suggestions: Headless mode detected, skipping GUI');
@@ -32,4 +35,4 @@ add_action('plugins_loaded', function () {
     $ai_suggestions = new AI_Suggestions();
     $settings = new Settings($ai_suggestions);
     $settings->init();
-}, 10);
+}, 11); // After TSF (10) and TSFEM (if present)
