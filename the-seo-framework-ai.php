@@ -1,15 +1,16 @@
 <?php
 /*
-Plugin Name: TSF AI Suggestions
+Plugin Name: The SEO Framework AI Suggestions
 Description: Adds AI-powered content suggestions to The SEO Framework using an OpenAI-compatible endpoint.
 Version: 1.0.0
-Author: Your Name
+Author: Devin J. Dawson
 Requires Plugins: the-seo-framework
 */
 
 // Prevent direct access.
 if (!defined('ABSPATH')) exit;
 
+// Use __DIR__ to ensure paths are relative to this file’s location.
 require_once __DIR__ . '/includes/class-ai-suggestions.php';
 require_once __DIR__ . '/includes/class-settings.php';
 
