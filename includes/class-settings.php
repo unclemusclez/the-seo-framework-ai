@@ -27,19 +27,22 @@ class Settings {
             return;
         }
 
-        $tsf = tsf();
-        $tsf->add_option_filter('tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
-        $page = $tsf->add_menu_page(
-            [
-                'page_title' => 'AI Suggestions Settings',
-                'menu_title' => 'AI Suggestions',
-                'capability' => $capability,
-                'menu_slug' => 'tsf-ai-suggestions',
-                'callback' => [$this, 'render_settings_page'],
-            ],
-            'seo-settings' // Revert to original slug for consistency with TSF docs
+        // Replace tsf()->add_option_filter with filter hook
+        add_filter('the_seo_framework_settings_update_sanitizers', function ($sanitizers) {
+            $sanitizers['tsf_ai_suggestions_settings'] = [$this, 'sanitize_settings'];
+            return $sanitizers;
+        });
+
+        // Use WordPress add_submenu_page instead of tsf()->add_menu_page
+        $page = add_submenu_page(
+            'theseoframework-settings', // TSF’s main menu slug from logs
+            'AI Suggestions Settings',
+            'AI Suggestions',
+            $capability,
+            'tsf-ai-suggestions',
+            [$this, 'render_settings_page']
         );
-        error_log('TSF AI Suggestions: Menu page added under seo-settings, result: ' . ($page ? 'success' : 'failed'));
+        error_log('TSF AI Suggestions: Menu page added under theseoframework-settings, result: ' . ($page ? $page : 'failed'));
     }
 
     public function sanitize_settings($input) {
