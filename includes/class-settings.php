@@ -11,10 +11,8 @@ class Settings {
 
     public function init() {
         error_log('TSF AI Suggestions: Settings::init called');
-        // Use TSF’s admin init for menu registration
-        add_action('the_seo_framework_after_admin_init', [$this, 'register_settings'], 10);
+        add_action('admin_menu', [$this, 'register_settings'], 11); // Earlier than TSFEM’s extensions
         add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']);
-        // TSF hooks for meta boxes
         add_action('the_seo_framework_after_post_edit_metabox', [$this, 'add_suggestion_button'], 10);
         add_action('the_seo_framework_after_term_edit_metabox', [$this, 'add_suggestion_button'], 10);
         $this->apply_filters();
@@ -42,6 +40,7 @@ class Settings {
         );
         error_log('TSF AI Suggestions: Menu page added under seo-settings, result: ' . ($page ? 'success' : 'failed'));
     }
+
 
     public function sanitize_settings($input) {
         $input['endpoint'] = esc_url_raw($input['endpoint']);
