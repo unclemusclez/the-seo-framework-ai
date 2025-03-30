@@ -1,7 +1,10 @@
 jQuery(document).ready(function ($) {
   $("#tsf-ai-suggest").on("click", function () {
+    // Use TSF’s field IDs
     var content =
-      $("#tsf-title-input").val() || $("#tsf-description-input").val() || "";
+      $("#autodescription-meta\\[doctitle\\]").val() ||
+      $("#autodescription-meta\\[description\\]").val() ||
+      "";
     if (!content) {
       alert("Please enter a title or description first.");
       return;
@@ -26,9 +29,10 @@ jQuery(document).ready(function ($) {
           );
         }
       },
-      error: function () {
+      error: function (xhr, status, error) {
+        console.error("AJAX Error:", status, error);
         $("#tsf-ai-suggestion-result").html(
-          "<p>Request failed. Check your API settings.</p>"
+          "<p>Request failed. Check console for details.</p>"
         );
       },
     });

@@ -11,37 +11,32 @@ class Settings {
 
     public function init() {
         error_log('TSF AI Suggestions: Settings::init called');
-        // Use admin_init as a fallback if TSF-specific hook fails
-        add_action('admin_init', [$this, 'register_settings_fallback']);
-        add_action('the_seo_framework_after_admin_init', [$this, 'register_settings'], 10);
+        // Use admin_menu for broader compatibility
+        add_action('admin_menu', [$this, 'register_settings'], 11); // After TSF’s 10
         add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']);
-        // Try a more general TSF hook for meta box
-        add_action('the_seo_framework_metabox_after', [$this, 'add_suggestion_button'], 10, 2);
+        // Use a more common TSF meta box hook
+        add_action('the_seo_framework_after_post_edit_metabox', [$this, 'add_suggestion_button'], 10);
         $this->apply_filters();
     }
 
     public function register_settings() {
         error_log('TSF AI Suggestions: register_settings called');
-        $tsf = tsf();
-
-        $tsf->add_option_filter('tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
-        $tsf->add_menu_page(
-            [
-                'page_title' => 'AI Suggestions Settings',
-                'menu_title' => 'AI Suggestions',
-                'capability' => 'manage_options',
-                'menu_slug' => 'tsf-ai-suggestions',
-                'callback' => [$this, 'render_settings_page'],
-            ],
-            'seo-settings' // TSF parent menu slug
-        );
-        error_log('TSF AI Suggestions: Menu page added under seo-settings');
-    }
-
-    // Fallback if TSF hook doesn’t fire
-    public function register_settings_fallback() {
-        if (!did_action('the_seo_framework_after_admin_init')) {
-            error_log('TSF AI Suggestions: Fallback menu registration');
+        if (function_exists('tsf')) {
+            $tsf = tsf();
+            $tsf->add_option_filter('tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
+            $tsf->add_menu_page(
+                [
+                    'page_title' => 'AI Suggestions Settings',
+                    'menu_title' => 'AI Suggestions',
+                    'capability' => 'manage_options',
+                    'menu_slug' => 'tsf-ai-suggestions',
+                    'callback' => [$this, 'render_settings_page'],
+                ],
+                'seo-settings'
+            );
+            error_log('TSF AI Suggestions: Menu page added under seo-settings');
+        } else {
+            error_log('TSF AI Suggestions: TSF not fully loaded, using fallback');
             add_menu_page(
                 'AI Suggestions Settings',
                 'AI Suggestions',
@@ -51,7 +46,6 @@ class Settings {
                 'dashicons-admin-tools',
                 100
             );
-            register_setting('tsf_ai_suggestions_settings_group', 'tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
         }
     }
 
@@ -119,13 +113,16 @@ class Settings {
 
     public function enqueue_scripts($hook) {
         error_log("TSF AI Suggestions: enqueue_scripts called with hook: $hook");
-        if (!in_array($hook, ['post.php', 'post-new.php'], true)) {
+        if (!in_array($hook, ['post.php', 'post-new.php', 'edit-tags.php', 'term.php'], true)) {
             return;
         }
 
+        $script_url = plugin_dir_url(__DIR__) . 'assets/js/ai-suggestions.js';
+        error_log("TSF AI Suggestions: Enqueueing script at: $script_url");
+
         wp_enqueue_script(
             'tsf-ai-suggestions',
-            plugin_dir_url(__DIR__) . 'assets/js/ai-suggestions.js',
+            $script_url,
             ['jquery'],
             '1.0.0',
             true
@@ -141,8 +138,8 @@ class Settings {
         error_log('TSF AI Suggestions: Scripts enqueued');
     }
 
-    public function add_suggestion_button($post_id, $context = null) {
-        error_log("TSF AI Suggestions: add_suggestion_button called for post ID: $post_id");
+    public function add_suggestion_button() {
+        error_log('TSF AI Suggestions: add_suggestion_button called');
         ?>
         <div class="tsf-ai-suggestions">
             <button type="button" class="button button-primary" id="tsf-ai-suggest">Get AI Suggestions</button>
