@@ -1,180 +1,129 @@
 <?php
 namespace TSF_AI_Suggestions;
 
-class Settings {
+use DOMDocument;
+use DOMXPath;
 
-    private $ai_suggestions;
+class AI_Suggestions {
 
-    public function __construct(AI_Suggestions $ai_suggestions) {
-        $this->ai_suggestions = $ai_suggestions;
+    private $endpoint;
+    private $api_key;
+    private $max_tokens;
+    private $temperature;
+    private $allow_unverified_ssl;
+    private $system_prompt; // New property
+
+    public function __construct() {
+        $options = get_option('tsf_ai_suggestions_settings', []);
+        $this->endpoint = $options['endpoint'] ?? 'https://openai.com/chat/completions';
+        $this->api_key = $options['api_key'] ?? '';
+        $this->max_tokens = $options['max_tokens'] ?? 500;
+        $this->temperature = $options['temperature'] ?? 0.7;
+        $this->allow_unverified_ssl = $options['allow_unverified_ssl'] ?? 0;
+        $this->system_prompt = $options['system_prompt'] ?? 'Improve this text:'; // New setting
+        $this->init_ajax();
     }
 
-    public function init() {
-        error_log('TSF AI Suggestions: Settings::init called');
-        add_action('admin_menu', [$this, 'register_settings'], 11);
-        add_action('admin_init', [$this, 'register_settings_fields']); // New hook for settings
-        add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']);
-        add_action('the_seo_framework_metabox_after', [$this, 'add_suggestion_button'], 10);
-        add_action('the_seo_framework_after_post_edit_metabox', [$this, 'add_suggestion_button'], 10);
-        add_action('the_seo_framework_after_term_edit_metabox', [$this, 'add_suggestion_button'], 10);
-        $this->apply_filters();
+    public function process_content($content) {
+        $suggested_content = $this->get_ai_suggestion($content);
+        if (!$suggested_content) {
+            return $content;
+        }
+        return $this->calculate_diff($content, $suggested_content);
     }
 
-    public function register_settings() {
-        error_log('TSF AI Suggestions: register_settings called');
-        $capability = defined('TSF_EXTENSION_MANAGER_MAIN_ADMIN_ROLE') ? TSF_EXTENSION_MANAGER_MAIN_ADMIN_ROLE : 'manage_options';
-        if (!current_user_can($capability)) {
-            error_log('TSF AI Suggestions: User lacks capability: ' . $capability);
-            return;
+    private function get_ai_suggestion($original) {
+        $prompt = $this->system_prompt . " " . $original; // Use system prompt
+        $data = [
+            'prompt' => $prompt,
+            'max_tokens' => (int)$this->max_tokens,
+            'temperature' => (float)$this->temperature,
+        ];
+
+        $response = $this->make_api_request($data);
+        if ($response && isset($response['choices'][0]['text'])) {
+            return trim($response['choices'][0]['text']);
+        }
+        return null;
+    }
+
+    private function make_api_request($data) {
+        $args = [
+            'body' => json_encode($data),
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Authorization' => $this->api_key ? "Bearer $this->api_key" : '',
+            ],
+            'timeout' => 30,
+            'sslverify' => !$this->allow_unverified_ssl,
+        ];
+
+        $response = wp_remote_post($this->endpoint, $args);
+        if (is_wp_error($response)) {
+            return null;
         }
 
-        add_filter('the_seo_framework_settings_update_sanitizers', function ($sanitizers) {
-            $sanitizers['tsf_ai_suggestions_settings'] = [$this, 'sanitize_settings'];
-            return $sanitizers;
-        });
-
-        $page = add_submenu_page(
-            'theseoframework-settings',
-            'AI Suggestions Settings',
-            'AI Suggestions',
-            $capability,
-            'tsf-ai-suggestions',
-            [$this, 'render_settings_page']
-        );
-        error_log('TSF AI Suggestions: Menu page added under theseoframework-settings, result: ' . ($page ? $page : 'failed'));
+        $body = wp_remote_retrieve_body($response);
+        return json_decode($body, true);
     }
 
-    public function register_settings_fields() {
-        error_log('TSF AI Suggestions: register_settings_fields called');
-        register_setting('tsf_ai_suggestions_settings_group', 'tsf_ai_suggestions_settings', [$this, 'sanitize_settings']);
-    }
-
-    public function sanitize_settings($input) {
-        $input['endpoint'] = esc_url_raw($input['endpoint']);
-        $input['api_key'] = sanitize_text_field($input['api_key']);
-        $input['max_tokens'] = absint($input['max_tokens']);
-        $input['temperature'] = max(0, min(2, floatval($input['temperature'])));
-        $input['enable_description'] = isset($input['enable_description']) ? 1 : 0;
-        $input['enable_title'] = isset($input['enable_title']) ? 1 : 0;
-        $input['allow_unverified_ssl'] = isset($input['allow_unverified_ssl']) ? 1 : 0;
-        $input['system_prompt'] = sanitize_text_field($input['system_prompt'] ?? '');
-        return $input;
-    }
-
-    public function render_settings_page() {
-        $options = get_option('tsf_ai_suggestions_settings', $this->ai_suggestions->get_settings() + [
-            'enable_description' => 0,
-            'enable_title' => 0,
-            'allow_unverified_ssl' => 0,
-            'system_prompt' => 'Improve this text:',
-        ]);
-        ?>
-        <div class="wrap">
-            <h1>AI Suggestions Settings</h1>
-            <form method="post" action="options.php">
-                <?php
-                settings_fields('tsf_ai_suggestions_settings_group');
-                do_settings_sections('tsf_ai_suggestions_settings_group');
-                ?>
-                <table class="form-table">
-                    <tr>
-                        <th><label for="tsf_ai_endpoint">API Endpoint</label></th>
-                        <td><input type="url" name="tsf_ai_suggestions_settings[endpoint]" id="tsf_ai_endpoint" value="<?php echo esc_attr($options['endpoint']); ?>" class="regular-text" /></td>
-                    </tr>
-                    <tr>
-                        <th><label for="tsf_ai_api_key">API Key (Optional)</label></th>
-                        <td><input type="text" name="tsf_ai_suggestions_settings[api_key]" id="tsf_ai_api_key" value="<?php echo esc_attr($options['api_key']); ?>" class="regular-text" /></td>
-                    </tr>
-                    <tr>
-                        <th><label for="tsf_ai_max_tokens">Max Tokens</label></th>
-                        <td><input type="number" name="tsf_ai_suggestions_settings[max_tokens]" id="tsf_ai_max_tokens" value="<?php echo esc_attr($options['max_tokens']); ?>" min="1" /></td>
-                    </tr>
-                    <tr>
-                        <th><label for="tsf_ai_temperature">Temperature</label></th>
-                        <td><input type="number" step="0.1" name="tsf_ai_suggestions_settings[temperature]" id="tsf_ai_temperature" value="<?php echo esc_attr($options['temperature']); ?>" min="0" max="2" /></td>
-                    </tr>
-                    <tr>
-                        <th><label for="tsf_ai_system_prompt">System Prompt</label></th>
-                        <td>
-                            <input type="text" name="tsf_ai_suggestions_settings[system_prompt]" id="tsf_ai_system_prompt" value="<?php echo esc_attr($options['system_prompt']); ?>" class="regular-text" />
-                            <p class="description">Enter a custom prompt to guide the AI (e.g., "Rewrite in a formal tone").</p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th><label for="tsf_ai_enable_description">Enable Description Suggestions</label></th>
-                        <td><input type="checkbox" name="tsf_ai_suggestions_settings[enable_description]" id="tsf_ai_enable_description" value="1" <?php checked($options['enable_description'], 1); ?> /></td>
-                    </tr>
-                    <tr>
-                        <th><label for="tsf_ai_enable_title">Enable Title Suggestions</label></th>
-                        <td><input type="checkbox" name="tsf_ai_suggestions_settings[enable_title]" id="tsf_ai_enable_title" value="1" <?php checked($options['enable_title'], 1); ?> /></td>
-                    </tr>
-                    <tr>
-                        <th><label for="tsf_ai_allow_unverified_ssl">Allow Unverified SSL</label></th>
-                        <td><input type="checkbox" name="tsf_ai_suggestions_settings[allow_unverified_ssl]" id="tsf_ai_allow_unverified_ssl" value="1" <?php checked($options['allow_unverified_ssl'], 1); ?> /> <small>(Enable if using a self-signed SSL certificate)</small></td>
-                    </tr>
-                </table>
-                <?php submit_button(); ?>
-            </form>
-        </div>
-        <?php
-    }
-
-    public function enqueue_scripts($hook) {
-        error_log("TSF AI Suggestions: enqueue_scripts called with hook: $hook");
-        if (!in_array($hook, ['post.php', 'post-new.php', 'edit-tags.php', 'term.php'], true)) {
-            return;
+    private function calculate_diff($original, $suggested) {
+        if (!class_exists('Text_Diff')) {
+            require_once ABSPATH . '/wp-includes/wp-diff.php';
         }
 
-        $script_url = plugin_dir_url(__DIR__) . 'assets/js/ai-suggestions.js';
-        error_log("TSF AI Suggestions: Enqueueing script at: $script_url");
+        $left_lines = explode("\n", $original);
+        $right_lines = explode("\n", $suggested);
 
-        wp_enqueue_script(
-            'tsf-ai-suggestions',
-            $script_url,
-            ['jquery'],
-            '1.0.0',
-            true
-        );
-        wp_localize_script(
-            'tsf-ai-suggestions',
-            'tsfAiSettings',
-            [
-                'ajaxurl' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('tsf_ai_suggestions_nonce'),
-            ]
-        );
-        error_log('TSF AI Suggestions: Scripts enqueued');
+        $text_diff = new \Text_Diff($left_lines, $right_lines);
+        $renderer = class_exists('WPSEO_HTML_Diff_Renderer') ? new \WPSEO_HTML_Diff_Renderer() : new \Text_Diff_Renderer();
+        $diff = $renderer->render($text_diff);
+
+        $diff = str_replace(["\n", "\\n"], '', $diff);
+        return $this->serialize_diff($diff);
     }
 
-    public function add_suggestion_button() {
-        global $hook_suffix;
-        error_log("TSF AI Suggestions: add_suggestion_button called on hook: $hook_suffix");
-        ?>
-        <div class="tsf-ai-suggestions">
-            <button type="button" class="button button-primary" id="tsf-ai-suggest">Get AI Suggestions</button>
-            <div id="tsf-ai-suggestion-result"></div>
-        </div>
-        <?php
+    private function serialize_diff($diff) {
+        $dom = new DOMDocument();
+        @$dom->loadHTML("<html><body>$diff</body></html>", LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        $xpath = new DOMXPath($dom);
+        $nodes = $xpath->query('//body/*');
+
+        $output = '';
+        foreach ($nodes as $node) {
+            $output .= $dom->saveHTML($node);
+        }
+
+        return html_entity_decode(trim($output), ENT_QUOTES, get_bloginfo('charset'));
     }
 
-    private function apply_filters() {
-        $options = get_option('tsf_ai_suggestions_settings', [
-            'enable_description' => 0,
-            'enable_title' => 0,
-        ]);
+    public function get_settings() {
+        return [
+            'endpoint' => $this->endpoint,
+            'api_key' => $this->api_key,
+            'max_tokens' => $this->max_tokens,
+            'temperature' => $this->temperature,
+            'allow_unverified_ssl' => $this->allow_unverified_ssl,
+            'system_prompt' => $this->system_prompt, // Include in settings
+        ];
+    }
 
-        if ($options['enable_description']) {
-            add_filter('the_seo_framework_description_excerpt', function ($excerpt, $args) {
-                $ai = new AI_Suggestions();
-                return $ai->process_content($excerpt);
-            }, 10, 2);
+    public function ajax_get_suggestion() {
+        check_ajax_referer('tsf_ai_suggestions_nonce', 'nonce');
+        if (!current_user_can('edit_posts')) {
+            wp_send_json_error('Permission denied');
         }
 
-        if ($options['enable_title']) {
-            add_filter('the_seo_framework_title_from_generation', function ($title, $args) {
-                $ai = new AI_Suggestions();
-                return $ai->process_content($title);
-            }, 10, 2);
+        $content = sanitize_text_field($_POST['content'] ?? '');
+        if (!$content) {
+            wp_send_json_error('No content provided');
         }
+
+        $suggestion = $this->process_content($content);
+        wp_send_json_success(['suggestion' => $suggestion]);
+    }
+
+    public function init_ajax() {
+        add_action('wp_ajax_tsf_ai_get_suggestion', [$this, 'ajax_get_suggestion']);
     }
 }

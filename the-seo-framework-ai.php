@@ -10,8 +10,21 @@ Requires Plugins: the-seo-framework
 // Prevent direct access.
 if (!defined('ABSPATH')) exit;
 
-require_once __DIR__ . '/includes/class-ai-suggestions.php';
-require_once __DIR__ . '/includes/class-settings.php';
+// Verify includes
+$ai_file = __DIR__ . '/includes/class-ai-suggestions.php';
+$settings_file = __DIR__ . '/includes/class-settings.php';
+
+if (!file_exists($ai_file)) {
+    error_log('TSF AI Suggestions: Error - class-ai-suggestions.php not found at ' . $ai_file);
+    return;
+}
+if (!file_exists($settings_file)) {
+    error_log('TSF AI Suggestions: Error - class-settings.php not found at ' . $settings_file);
+    return;
+}
+
+require_once $ai_file;
+require_once $settings_file;
 
 use TSF_AI_Suggestions\AI_Suggestions;
 use TSF_AI_Suggestions\Settings;
