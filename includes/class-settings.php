@@ -104,6 +104,7 @@ class Settings {
                     </tr>
                     <tr>
                         <th><label for="tsf_ai_allow_unverified_ssl">Allow Unverified SSL</label></th>
+                        <td><input type="checkbox  * @param {string}          part   The state index to change.
                         <td><input type="checkbox" name="tsf_ai_suggestions_settings[allow_unverified_ssl]" id="tsf_ai_allow_unverified_ssl" value="1" <?php checked($options['allow_unverified_ssl'], 1); ?> /> <small>(Enable if using a self-signed SSL certificate)</small></td>
                     </tr>
                 </table>
@@ -112,7 +113,7 @@ class Settings {
         </div>
         <?php
     }
-
+    
     public function enqueue_scripts($hook) {
         error_log("TSF AI Suggestions: enqueue_scripts called with hook: $hook");
         if (!in_array($hook, ['post.php', 'post-new.php', 'edit-tags.php', 'term.php'], true)) {
