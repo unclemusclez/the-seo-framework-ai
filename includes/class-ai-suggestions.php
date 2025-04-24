@@ -11,16 +11,16 @@ class AI_Suggestions {
     private $max_tokens;
     private $temperature;
     private $allow_unverified_ssl;
-    private $system_prompt; // New property
+    private $system_prompt;
 
     public function __construct() {
         $options = get_option('tsf_ai_suggestions_settings', []);
-        $this->endpoint = $options['endpoint'] ?? 'https://openai.com/chat/completions';
+        $this->endpoint = $options['endpoint'] ?? 'https://api.openai.com/v1/chat/completions';
         $this->api_key = $options['api_key'] ?? '';
         $this->max_tokens = $options['max_tokens'] ?? 500;
         $this->temperature = $options['temperature'] ?? 0.7;
         $this->allow_unverified_ssl = $options['allow_unverified_ssl'] ?? 0;
-        $this->system_prompt = $options['system_prompt'] ?? 'Improve this text:'; // New setting
+        $this->system_prompt = $options['system_prompt'] ?? 'Improve this text:';
         $this->init_ajax();
     }
 
@@ -33,38 +33,54 @@ class AI_Suggestions {
     }
 
     private function get_ai_suggestion($original) {
-        $prompt = $this->system_prompt . " " . $original; // Use system prompt
         $data = [
-            'prompt' => $prompt,
+            'model' => 'gpt-3.5-turbo',
+            'messages' => [
+                ['role' => 'system', 'content' => $this->system_prompt],
+                ['role' => 'user', 'content' => $original],
+            ],
             'max_tokens' => (int)$this->max_tokens,
             'temperature' => (float)$this->temperature,
         ];
 
         $response = $this->make_api_request($data);
-        if ($response && isset($response['choices'][0]['text'])) {
-            return trim($response['choices'][0]['text']);
+        if ($response && isset($response['choices'][0]['message']['content'])) {
+            return trim($response['choices'][0]['message']['content']);
         }
         return null;
     }
 
     private function make_api_request($data) {
+        $headers = ['Content-Type' => 'application/json'];
+        if ($this->api_key) {
+            $headers['Authorization'] = "Bearer $this->api_key";
+        }
+
         $args = [
             'body' => json_encode($data),
-            'headers' => [
-                'Content-Type' => 'application/json',
-                'Authorization' => $this->api_key ? "Bearer $this->api_key" : '',
-            ],
+            'headers' => $headers,
             'timeout' => 30,
             'sslverify' => !$this->allow_unverified_ssl,
         ];
 
         $response = wp_remote_post($this->endpoint, $args);
         if (is_wp_error($response)) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('TSF AI Suggestions: API request failed: ' . $response->get_error_message());
+            }
             return null;
         }
 
         $body = wp_remote_retrieve_body($response);
-        return json_decode($body, true);
+        $decoded = json_decode($body, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !isset($decoded['choices'][0]['message']['content'])) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('TSF AI Suggestions: Invalid API response: ' . $body);
+            }
+            return null;
+        }
+
+        return $decoded;
     }
 
     private function calculate_diff($original, $suggested) {
@@ -85,7 +101,13 @@ class AI_Suggestions {
 
     private function serialize_diff($diff) {
         $dom = new DOMDocument();
-        @$dom->loadHTML("<html><body>$diff</body></html>", LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        if (!$dom->loadHTML("<html><body>$diff</body></html>", LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD)) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('TSF AI Suggestions: Failed to parse HTML diff');
+            }
+            return $diff;
+        }
+
         $xpath = new DOMXPath($dom);
         $nodes = $xpath->query('//body/*');
 
@@ -104,13 +126,13 @@ class AI_Suggestions {
             'max_tokens' => $this->max_tokens,
             'temperature' => $this->temperature,
             'allow_unverified_ssl' => $this->allow_unverified_ssl,
-            'system_prompt' => $this->system_prompt, // Include in settings
+            'system_prompt' => $this->system_prompt,
         ];
     }
 
     public function ajax_get_suggestion() {
         check_ajax_referer('tsf_ai_suggestions_nonce', 'nonce');
-        if (!current_user_can('edit_posts')) {
+        if (!current_user_can('manage_options')) { // More restrictive capability
             wp_send_json_error('Permission denied');
         }
 
