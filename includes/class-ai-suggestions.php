@@ -25,13 +25,15 @@ class AI_Suggestions {
     }
 
     public function process_content($content) {
+        // Preprocess to normalize spaces (optional, if AI struggles with TSF’s output)
+        $content = preg_replace('/\s+/', ' ', trim($content));
+        
         $suggested_content = $this->get_ai_suggestion($content);
         if (!$suggested_content) {
             return $content;
         }
         return $this->calculate_diff($content, $suggested_content);
     }
-
     private function get_ai_suggestion($original) {
         $data = [
             'model' => 'gpt-3.5-turbo',

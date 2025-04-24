@@ -50,15 +50,17 @@ class Settings {
         $output['temperature'] = max(0, min(2, floatval($input['temperature'] ?? 0.7)));
         $output['enable_description'] = isset($input['enable_description']) ? 1 : 0;
         $output['enable_title'] = isset($input['enable_title']) ? 1 : 0;
+        $output['enable_ai_description_generation'] = isset($input['enable_ai_description_generation']) ? 1 : 0;
+        $output['override_custom_descriptions'] = isset($input['override_custom_descriptions']) ? 1 : 0; // New setting
         $output['allow_unverified_ssl'] = isset($input['allow_unverified_ssl']) ? 1 : 0;
         $output['system_prompt'] = sanitize_text_field($input['system_prompt'] ?? 'Improve this text:');
         return $output;
     }
-
     public function render_settings_page() {
         $options = get_option('tsf_ai_suggestions_settings', $this->ai_suggestions->get_settings() + [
             'enable_description' => 0,
             'enable_title' => 0,
+            'enable_ai_description_generation' => 0, // New setting
             'allow_unverified_ssl' => 0,
             'system_prompt' => 'Improve this text:',
         ]);
@@ -71,6 +73,13 @@ class Settings {
                 do_settings_sections('tsf_ai_suggestions_settings_group');
                 ?>
                 <table class="form-table">
+                    <tr>
+                        <th><label for="tsf_ai_enable_ai_description_generation">Enable AI Description Generation</label></th>
+                        <td>
+                            <input type="checkbox" name="tsf_ai_suggestions_settings[enable_ai_description_generation]" id="tsf_ai_enable_ai_description_generation" value="1" <?php checked($options['enable_ai_description_generation'], 1); ?> />
+                            <p class="description">When enabled, AI-generated descriptions replace The SEO Framework's automated descriptions.</p>
+                        </td>
+                    </tr>
                     <tr>
                         <th><label for="tsf_ai_endpoint">API Endpoint</label></th>
                         <td><input type="url" name="tsf_ai_suggestions_settings[endpoint]" id="tsf_ai_endpoint" value="<?php echo esc_attr($options['endpoint']); ?>" class="regular-text" /></td>
@@ -109,6 +118,13 @@ class Settings {
                             <small>(Enable if using a self-signed SSL certificate)</small>
                         </td>
                     </tr>
+                    <tr>
+                        <th><label for="tsf_ai_override_custom_descriptions">Override Custom Descriptions with AI</label></th>
+                        <td>
+                            <input type="checkbox" name="tsf_ai_suggestions_settings[override_custom_descriptions]" id="tsf_ai_override_custom_descriptions" value="1" <?php checked($options['override_custom_descriptions'], 1); ?> />
+                            <p class="description">When enabled, AI suggestions replace custom descriptions set in The SEO Framework.</p>
+                        </td>
+                    </tr>
                 </table>
                 <?php submit_button(); ?>
             </form>
@@ -130,12 +146,23 @@ class Settings {
             '1.0.0',
             true
         );
+
+        $style_url = plugin_dir_url(__DIR__) . 'assets/css/ai-suggestions.css';
+        wp_enqueue_style(
+            'tsf-ai-suggestions',
+            $style_url,
+            [],
+            '1.0.0'
+        );
+
+        $options = get_option('tsf_ai_suggestions_settings', []);
         wp_localize_script(
             'tsf-ai-suggestions',
             'tsfAiSettings',
             [
                 'ajaxurl' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('tsf_ai_suggestions_nonce'),
+                'isAiGenerationEnabled' => !empty($options['enable_ai_description_generation']),
             ]
         );
     }
@@ -156,11 +183,34 @@ class Settings {
         $options = get_option('tsf_ai_suggestions_settings', [
             'enable_description' => 0,
             'enable_title' => 0,
+            'enable_ai_description_generation' => 0,
+            'override_custom_descriptions' => 0,
         ]);
 
-        if ($options['enable_description']) {
-            add_filter('the_seo_framework_description_excerpt', function ($excerpt, $args, $type) {
+        if ($options['enable_ai_description_generation']) {
+            add_filter('the_seo_framework_custom_field_description', function ($desc, $args) use ($options) {
                 if (is_admin() && !wp_doing_ajax()) {
+                    return $desc;
+                }
+
+                // If a custom description exists and override is disabled, return it
+                if ($desc && !$options['override_custom_descriptions']) {
+                    return $desc;
+                }
+
+                $input = $desc ?: \The_SEO_Framework\Meta\Description\Excerpt::get_excerpt($args);
+                if (!$input) {
+                    return $desc;
+                }
+
+                return $this->ai_suggestions->process_content($input);
+            }, 10, 2);
+
+            add_filter('the_seo_framework_description_excerpt', function ($excerpt, $args, $type) use ($options) {
+                if (is_admin() && !wp_doing_ajax()) {
+                    return $excerpt;
+                }
+                if (!$options['enable_description']) {
                     return $excerpt;
                 }
                 return $this->ai_suggestions->process_content($excerpt);

@@ -22,3 +22,9 @@
   padding: 10px;
   border-left: 4px solid #ccc;
 }
+
+.tsf-ai-note {
+  color: #555;
+  font-style: italic;
+  margin-top: 5px;
+}

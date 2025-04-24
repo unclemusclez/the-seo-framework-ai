@@ -1,17 +1,14 @@
 jQuery(document).ready(function ($) {
-  // Exit if the button doesn’t exist
   if (!$("#tsf-ai-suggest").length) {
     return;
   }
 
   $("#tsf-ai-suggest").on("click", function () {
-    // Get content from TSF title or description fields
     var content =
       $("#autodescription-meta\\[doctitle\\]").val() ||
       $("#autodescription-meta\\[description\\]").val() ||
       "";
 
-    // Show error if no content is provided
     var $result = $("#tsf-ai-suggestion-result");
     if (!content) {
       $result.html(
@@ -20,9 +17,8 @@ jQuery(document).ready(function ($) {
       return;
     }
 
-    // Show loading state
     $result.html('<p class="tsf-ai-loading">Generating suggestion...</p>');
-    $(this).prop("disabled", true); // Disable button during request
+    $(this).prop("disabled", true);
 
     $.ajax({
       url: tsfAiSettings.ajaxurl,
@@ -33,16 +29,18 @@ jQuery(document).ready(function ($) {
         content: content,
       },
       success: function (response) {
-        // Re-enable button
         $("#tsf-ai-suggest").prop("disabled", false);
 
         if (response.success) {
-          // Escape suggestion to prevent XSS
           var suggestion = $("<div>").text(response.data.suggestion).html();
+          var note = tsfAiSettings.isAiGenerationEnabled
+            ? '<p class="tsf-ai-note">Note: AI descriptions are automatically generated for this page.</p>'
+            : "";
           $result.html(
             '<p class="tsf-ai-suggestion"><strong>Suggestion:</strong> ' +
               suggestion +
-              "</p>"
+              "</p>" +
+              note
           );
         } else {
           $result.html(
@@ -53,7 +51,6 @@ jQuery(document).ready(function ($) {
         }
       },
       error: function (xhr, status, error) {
-        // Re-enable button
         $("#tsf-ai-suggest").prop("disabled", false);
 
         var errorMessage = "Request failed. Please try again.";
